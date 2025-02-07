@@ -1,6 +1,8 @@
 version: '3'
 volumes:
   database:
+  mssql_data:
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.2
@@ -32,6 +34,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KAFKA_CREATE_TOPICS: "schema-changes.productsdb:1:1"
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.5.2
@@ -56,20 +59,16 @@ services:
       CONNECT_BOOTSTRAP_SERVERS: kafka:29092
       CONNECT_GROUP_ID: "debezium-example"
       CONNECT_REST_ADVERTISED_HOST_NAME: connect
-
       CONNECT_CONFIG_STORAGE_TOPIC: connect-demo-configs
       CONNECT_OFFSET_STORAGE_TOPIC: connect-demo-offsets
       CONNECT_STATUS_STORAGE_TOPIC: connect-demo-statuses
-
       CONNECT_REPLICATION_FACTOR: 1
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
-
       CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
       CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
       CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      # CLASSPATH required due to CC-2422
       CLASSPATH: "/usr/share/java/monitoring-interceptors/monitoring-interceptors-7.5.2.jar"
       CONNECT_PLUGIN_PATH: '/usr/share/java,/usr/share/confluent-hub-components/,/connectors/'
     volumes:
@@ -81,10 +80,28 @@ services:
       - |
         echo "Installing connector plugins"
         confluent-hub install --no-prompt debezium/debezium-connector-postgresql:2.2.1
+        confluent-hub install --no-prompt debezium/debezium-connector-sqlserver:2.2.1
         echo "Launching Kafka Connect worker"
         /etc/confluent/docker/run
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      - KAFKA_CLUSTERS_0_SCHEMAREGISTRY=http://schema-registry:8081
+    depends_on:
+      - kafka
+      - zookeeper
+      - schema-registry
+
   postgres:
     image: postgres:15
+    container_name: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -93,8 +110,28 @@ services:
       - database:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432"
+      - "5433:5432"
     command: >
       -c wal_level=logical
       -c max_wal_senders=1
       -c max_replication_slots=1
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "StrongP@ssw0rd"
+      MSSQL_PID: "Developer"  # Enables full feature set including CDC
+      MSSQL_AGENT_ENABLED: "true"  # Enables SQL Server Agent
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql/data
+      - ./ms-sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: /bin/bash -c "/opt/mssql/bin/permissions_check.sh && /opt/mssql/bin/sqlservr"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'StrongP@ssw0rd' -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
