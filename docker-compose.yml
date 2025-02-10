@@ -119,6 +119,7 @@ services:
   mssql:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: mssql
+    user: root
     environment:
       ACCEPT_EULA: "Y"
       SA_PASSWORD: "StrongP@ssw0rd"
@@ -127,7 +128,7 @@ services:
     ports:
       - "1433:1433"
     volumes:
-      - mssql_data:/var/opt/mssql/data
+      - mssql_data:/var/opt/mssql/data:Z
       - ./ms-sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: /bin/bash -c "/opt/mssql/bin/permissions_check.sh && /opt/mssql/bin/sqlservr"
     healthcheck:
