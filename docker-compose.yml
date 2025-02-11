@@ -2,6 +2,7 @@ version: '3'
 volumes:
   database:
   mssql_data:
+  mssql_data_replica:
 
 services:
   zookeeper:
@@ -69,8 +70,8 @@ services:
       CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
       CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
       CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components,/connectors"
       CLASSPATH: "/usr/share/java/monitoring-interceptors/monitoring-interceptors-7.5.2.jar"
-      CONNECT_PLUGIN_PATH: '/usr/share/java,/usr/share/confluent-hub-components/,/connectors/'
     volumes:
       - database:/opt/docker/db/data
       - $PWD/stack-configs:/opt/docker/stack-configs
@@ -81,6 +82,7 @@ services:
         echo "Installing connector plugins"
         confluent-hub install --no-prompt debezium/debezium-connector-postgresql:2.2.1
         confluent-hub install --no-prompt debezium/debezium-connector-sqlserver:2.2.1
+        confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:latest
         echo "Launching Kafka Connect worker"
         /etc/confluent/docker/run
 
@@ -123,13 +125,33 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       SA_PASSWORD: "StrongP@ssw0rd"
-      MSSQL_PID: "Developer"  # Enables full feature set including CDC
-      MSSQL_AGENT_ENABLED: "true"  # Enables SQL Server Agent
+      MSSQL_PID: "Developer" 
+      MSSQL_AGENT_ENABLED: "true" 
     ports:
       - "1433:1433"
     volumes:
       - mssql_data:/var/opt/mssql/data:Z
       - ./ms-sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: /bin/bash -c "/opt/mssql/bin/permissions_check.sh && /opt/mssql/bin/sqlservr"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'StrongP@ssw0rd' -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mssql_replica:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql_replica
+    user: root
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "StrongP@ssw0rd"
+      MSSQL_PID: "Developer"
+      MSSQL_AGENT_ENABLED: "true"
+    ports:
+      - "1434:1433"
+    volumes:
+      - mssql_data_replica:/var/opt/mssql/data:Z
     command: /bin/bash -c "/opt/mssql/bin/permissions_check.sh && /opt/mssql/bin/sqlservr"
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'StrongP@ssw0rd' -Q 'SELECT 1' || exit 1"]

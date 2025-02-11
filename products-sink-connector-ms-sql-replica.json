@@ -1,0 +1,27 @@
+{
+  "name": "products-sink-connector-ms-sql-replica",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "debezium-sync.productsdb.dbo.products",
+    "connection.url": "jdbc:sqlserver://mssql_replica:1433;databaseName=productsdb",
+    "connection.user": "sa",
+    "connection.password": "StrongP@ssw0rd",
+    "insert.mode": "upsert",
+    "auto.create": "true",
+    "auto.evolve": "true",
+    "pk.mode": "record_key",
+    "pk.fields": "PRODUCT_ID",
+    "delete.enabled": "true",
+    "table.name.format": "products",
+    "flush.size": "1000",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "true",
+    "transforms": "dropServiceFields",
+    "transforms.dropServiceFields.type": "org.apache.kafka.connect.transforms.ReplaceField$Value",
+    "transforms.dropServiceFields.blacklist": "__table,__source_ts_ms,__op,__deleted"
+  }
+}

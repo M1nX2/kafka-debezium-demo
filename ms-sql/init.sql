@@ -47,7 +47,7 @@ GO
 -- Create products table
 PRINT 'Creating products table...';
 CREATE TABLE dbo.products (
-    PRODUCT_ID BIGINT IDENTITY(1,1) PRIMARY KEY,
+    PRODUCT_ID BIGINT PRIMARY KEY,
     NAME NVARCHAR(255) NOT NULL,
     DESCRIPTION NVARCHAR(1000) NOT NULL,
     PRICE DECIMAL(18, 5) NOT NULL,
@@ -72,11 +72,11 @@ GO
 
 -- Insert test data
 PRINT 'Inserting test data...';
-INSERT INTO dbo.products (NAME, DESCRIPTION, PRICE)
+INSERT INTO dbo.products (PRODUCT_ID, NAME, DESCRIPTION, PRICE)
 VALUES 
-    ('Product One', 'First test product', 10.99),
-    ('Product Two', 'Second test product', 20.50),
-    ('Product Three', 'Third test product', 15.75);
+    (1, 'Product One', 'First test product', 10.99),
+    (2, 'Product Two', 'Second test product', 20.50),
+    (3, 'Product Three', 'Third test product', 15.75);
 GO
 
 -- Verify table creation

@@ -1,3 +1,3 @@
-curl -s -S -XPOST -H Accept:application/json -H Content-Type:application/json http://localhost:8083/connectors/ -d @debezium-config.json
-curl -s -S -XPOST -H Accept:application/json -H Content-Type:application/json http://localhost:8083/connectors/ -d @ms-sql-connector.json
-docker exec -it kafka kafka-topics --create --topic schema-changes.productsdb --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1
+curl -s -S -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d @debezium-config.json http://localhost:8083/connectors
+curl -s -S -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d @ms-sql-connector.json http://localhost:8083/connectors
+curl -s -S -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d @products-sink-connector-ms-sql-replica.json http://localhost:8083/connectors
